@@ -3,4 +3,4 @@ This is a unoffical python implement of nonlinear model predictive control with 
 
 The test code `test.py` is based on the simulation environment Robotarium(https://github.com/robotarium/robotarium_python_simulator).
 
-The `rps` is a modifed simulation for a simple reach-avoid game.
+The `\rps` is a modifed simulation for a simple reach-avoid game.
