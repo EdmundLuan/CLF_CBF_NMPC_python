@@ -1,29 +1,51 @@
 import rps.robotarium as robotarium
-from rps.utilities.transformations import *
-from rps.utilities.barrier_certificates import *
-from rps.utilities.misc import *
-from rps.utilities.controllers import *
+# from rps.utilities.transformations import *
+# from rps.utilities.barrier_certificates import *
+# from rps.utilities.misc import *
+# from rps.utilities.controllers import *
 from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
 import numpy as np
 
-N = 2
+# N = 2
+N = 6
 
-a = np.array([-1.2, -0.2 ,0]).T
-d = np.array([0.1, 0.35, -3.14 ]).T
-initial_conditions = np.array([a,d]).T 
+a = np.array([[-1.2, -1.2 ,0]]).T
+# d = np.array([[0.1, 0.35, -3.14]]).T # 
+d = np.array([  [1, 0.5, -3.14], 
+                [0.55, 0, -1],
+                [0.5, 0.5, -1.14],
+                [0, 1.2, -1.7],
+                [-0.5, -0.1, -2]
+    ]).T # 
+initial_conditions = np.concatenate((a,d), axis=1)
+# initial_conditions = np.array([a,d]).T
+print(initial_conditions)
 r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions,sim_in_real_time=True)
 
-def is_done(a_state,d_state):
-    distance = np.sqrt(np.sum(np.square(a_state[:2] - d_state[:2])))
 
-    if (distance<0.2 or a_state[1]>1.5 or a_state[1]<-1.5 ):
-        done_n = True
-    else:
-        done_n = False
+def is_done(all_states):
+    self_state = x[0]
+    other_states = x[1:]
+
+    # Check boundaries
+    if(self_state[1]>1.5 or self_state[1]<-1.5 or self_state[0]>1.5 or self_state[0]<-1.5):
+        print('Out of boundaries !!')
+        return True
+    # Reached goal?
+    if (0.5<=self_state[0]<=1.5 and 0.5<=self_state[1]<=1.5):
+        print('Reach goal successfully!')
+        return True
+
+    for idx in range(np.size(other_states, 0)):
+        if(other_states[idx][0]>1.5 or other_states[idx][0]<-1.5 or other_states[idx][1]>1.5 or other_states[idx][1]<-1.5 ):
+            print('Vehicle %d is out of boundaries !!' % idx+1)
+            return True
+        distSqr = (self_state[0]-other_states[idx][0])**2 + (self_state[1]-other_states[idx][1])**2
+        if distSqr < (0.2)**2:
+            print('Get caught, mission failed !')
+            return True
     
-    if (0.5<=a_state[0]<=1.5 and 0.5<=a_state[1]<=1.5):
-        done_n = True
-    return done_n
+    return False
 
 
 x = r.get_poses().T
@@ -32,22 +54,28 @@ r.step()
 i=0
 times = 0
 
-while (is_done(x[0],x[1])==False):
+while (is_done(x)==False):
 
     x = r.get_poses().T
     
-    # attacker_u = Base_NMPC(x[0],x[1])
-    attacker_u = CLF_CBF_NMPC(x[0],x[1])
+    # attacker_u = Base_NMPC(x[0],x[1:])
+    attacker_u = CLF_CBF_NMPC(x[0], x[1:])
+    # attacker_u = np.array([0, 0.1])
 
-    defender_u = Simple_Catcher(x[0],x[1])
+    # defender_u = Simple_Catcher(x[0],x[1])
 
-    dxu = np.zeros([2,2])
+    dxu = np.zeros([N,2])
     dxu[0] = np.array([attacker_u[0],attacker_u[1]])
-    dxu[1] = np.array([defender_u[0],defender_u[1]])
+
+    for idx in range(1, N):
+        defender_u = Simple_Catcher(x[0],x[idx])
+        # dxu[idx] = defender_u
+        dxu[idx] = np.array([0.15, 0.02]) 
 
     r.set_velocities(np.arange(N), dxu.T)
 
     times+=1
+    print("Iteration %d" % times)
     i+=1
     r.step()
 

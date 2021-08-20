@@ -1,29 +1,24 @@
 import numpy as np
-
-from cvxopt import matrix
-from cvxopt.blas import dot
-from cvxopt.solvers import qp, options
-from cvxopt import matrix, sparse
-
 import casadi as ca
-import numpy as np
 
-def CLF_CBF_NMPC(attacker_state,defender_state):
+
+def CLF_CBF_NMPC(self_state, others_states):
     
     opti = ca.Opti()
 
-    ## parameters
-    T = 0.05
-    N = 10
-    M_CBF = 3
-    M_CLF = 3
+    ## parameters for optimization
+    T = 0.1
+    N = 10  # MPC horizon
+    M_CBF = 5  # CBF-QP horizon
+    M_CLF = 2   # CLF-QP horizon
+    gamma_k = 0.1
     v_max = 0.5
-    omega_max = 2
-    safe_distance = 0.4
-    Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
-    R = np.array([[0.5, 0.0], [0.0, 0.001]])
-    W_slack = np.array([[1000]])
-    goal = np.array([[1.2, 1.2, 0.0]])
+    omega_max = 1.5
+    safe_distance = 0.3
+    Q = np.array([[2.0, 0.0, 0.0],[0.0, 2.0, 0.0],[0.0, 0.0, 0.0]])
+    R = np.array([[0.1, 0.0], [0.0, 0.0001]])
+    W_slack = np.array([[800]])
+    goal = np.array([[1.35, 1.35, 0.0]])
 
     ## control variables, linear velocity v and angle velocity omega
     opt_x0 = opti.parameter(3)
@@ -42,56 +37,80 @@ def CLF_CBF_NMPC(attacker_state,defender_state):
 
     ## create funciont for F(x), H(x) and V(x)
     f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
-    h = lambda x_: (x_[0] - defender_state[0]) ** 2 + (x_[1] - defender_state[1]) ** 2 - safe_distance**2 
-    V = lambda x_: (x_[0] - 1.2) ** 2 + (x_[1] - 1.2) ** 2 
+    h = []
+    # print(np.size(others_states, 0))
+    # for idx in range(np.size(others_states, 0)):
+    #     h.append( lambda x_: (x_[0] - others_states[idx][0]) ** 2 + (x_[1] - others_states[idx][1]) ** 2 - safe_distance**2 )
+    h1 = lambda x_: (x_[0] - others_states[0][0]) ** 2 + (x_[1] - others_states[0][1]) ** 2 - safe_distance**2
+    h2 = lambda x_: (x_[0] - others_states[1][0]) ** 2 + (x_[1] - others_states[1][1]) ** 2 - safe_distance**2
+    h3 = lambda x_: (x_[0] - others_states[2][0]) ** 2 + (x_[1] - others_states[2][1]) ** 2 - safe_distance**2
+    h4 = lambda x_: (x_[0] - others_states[3][0]) ** 2 + (x_[1] - others_states[3][1]) ** 2 - safe_distance**2
+    h5 = lambda x_: (x_[0] - others_states[4][0]) ** 2 + (x_[1] - others_states[4][1]) ** 2 - safe_distance**2
+    # h6 = lambda x_: (x_[0] - others_states[5][0]) ** 2 + (x_[1] - others_states[5][1]) ** 2 - safe_distance**2
+    
+    V = lambda x_: (x_[0] - goal[0][0]) ** 2 + (x_[1] - goal[0][1]) ** 2 
 
     ## init_condition
     opti.subject_to(opt_states[0, :] == opt_x0.T)
+
+    # Position Boundaries
     opti.subject_to(opti.bounded(-1.45, x, 1.45))
     opti.subject_to(opti.bounded(-1.45, y, 1.45))
+    # Admissable Control constraints
     opti.subject_to(opti.bounded(-v_max, v, v_max))
-    opti.subject_to(opti.bounded(-omega_max, omega, omega_max))   
+    opti.subject_to(opti.bounded(-omega_max, omega, omega_max)) 
 
-    ## system model constrain
+    # system model constraints
     for i in range(N):
         x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
         opti.subject_to(opt_states[i+1, :]==x_next)
     
-    ## CBF constrain
+    # CBF constraints
     for i in range(M_CBF):
-        opti.subject_to(h(opt_states[i+1, :]) >= (1-0.1)*h(opt_states[i, :]) ) 
+        # for j in range(np.size(others_states, 0)):
+        #     opti.subject_to(h[j](opt_states[i+1, :]) >= (1-gamma_k)*h[j](opt_states[i, :]) ) 
+        opti.subject_to(h1(opt_states[i+1, :]) >= (1-gamma_k)*h1(opt_states[i, :]) )
+        opti.subject_to(h2(opt_states[i+1, :]) >= (1-gamma_k)*h2(opt_states[i, :]) )
+        opti.subject_to(h3(opt_states[i+1, :]) >= (1-gamma_k)*h3(opt_states[i, :]) )
+        opti.subject_to(h4(opt_states[i+1, :]) >= (1-gamma_k)*h4(opt_states[i, :]) )
+        opti.subject_to(h5(opt_states[i+1, :]) >= (1-gamma_k)*h5(opt_states[i, :]) )
 
-    ## CLF constrain
-    for i in range(M_CLF):
-        opti.subject_to(V(opt_states[i+1, :]) <= (1-0.1)*V(opt_states[i, :]) + d_slack[i, :]) ## CLF constrain
+    # CLF constraints
+    # for i in range(M_CLF):
+    #     opti.subject_to(V(opt_states[i+1, :]) <= (1-0.1)*V(opt_states[i, :]) + d_slack[i, :]) 
 
     #### cost function
     obj = 0 
     for i in range(N):
-        obj = obj + ca.mtimes([(opt_states[i, :] - goal), Q, (opt_states[i, :]- goal).T]) + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T]) + ca.mtimes([d_slack[i, :], W_slack, d_slack[i, :].T]) 
+        obj = obj + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T]) + ca.mtimes([d_slack[i, :], W_slack, d_slack[i, :].T]) 
+    obj = obj + ca.mtimes([(opt_states[N-1, :] - goal), Q, (opt_states[N-1, :]- goal).T])
 
     opti.minimize(obj)
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':5000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-6, 'ipopt.acceptable_obj_change_tol':1e-6}
     opti.solver('ipopt',opts_setting)
-    opti.set_value(opt_x0, attacker_state)
+    opti.set_value(opt_x0, self_state)
     sol = opti.solve()
     u_res = sol.value(opt_controls)
 
     return u_res[0, :]
 
-def Base_NMPC(attacker_state,defender_state):
+def Base_NMPC(self_state, others_states):
 
     opti = ca.Opti()
 
-    ## parameters
-    T = 0.05
-    N = 10
+    ## parameters for optimization
+    T = 0.1
+    N = 20  # MPC horizon
+    M_CBF = 7  # CBF-QP horizon
+    M_CLF = 2   # CLF-QP horizon
+    gamma_k = 0.1
     v_max = 0.5
-    omega_max = 2
-    Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
-    R = np.array([[0.5, 0.0], [0.0, 0.001]])
-    W_slack = np.array([[1000]])
-    goal = np.array([[1.2, 1.2, 0.0]])
+    omega_max = 1.5
+    safe_distance = 0.3
+    Q = np.array([[5, 0.0, 0.0],[0.0, 5, 0.0],[0.0, 0.0, 0.0]])
+    R = np.array([[0.1, 0.0], [0.0, 0.00001]])
+    W_slack = np.array([[100]])
+    goal = np.array([[1.5, 1.5, 0.0]])
 
     ## control variables, linear velocity v and angle velocity omega
     opt_x0 = opti.parameter(3)
@@ -105,42 +124,117 @@ def Base_NMPC(attacker_state,defender_state):
     y = opt_states[:, 1]
     theta = opt_states[:, 2]
 
-    ## slack variable to avoid infeasibility 
+    ## slack variable to avoid infeasibility between CLF and CBF constraints
     d_slack = opti.variable(N, 1)
 
     ## create funciont for F(x), H(x) and V(x)
-    f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
+    f = lambda x_, u_: ca.vertcat(*[ u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1] ])
+    h = []
+    # print(np.size(others_states, 0))
+    # for idx in range(np.size(others_states, 0)):
+    #     tmp = lambda x_: (x_[0] - others_states[idx][0]) ** 2 + (x_[1] - others_states[idx][1]) ** 2 - safe_distance**2
+    #     h.append(tmp)
+    V = lambda x_: (x_[0] - goal[0][0]) ** 2 + (x_[1] - goal[0][1]) ** 2 
 
     ## init_condition
     opti.subject_to(opt_states[0, :] == opt_x0.T)
+
+    # Position Boundaries
     opti.subject_to(opti.bounded(-1.45, x, 1.45))
     opti.subject_to(opti.bounded(-1.45, y, 1.45))
+    # Admissable Control constraints
     opti.subject_to(opti.bounded(-v_max, v, v_max))
-    opti.subject_to(opti.bounded(-omega_max, omega, omega_max))   
+    opti.subject_to(opti.bounded(-omega_max, omega, omega_max)) 
 
-    ## system model constrain
+    # system model constraints
     for i in range(N):
         x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
         opti.subject_to(opt_states[i+1, :]==x_next)
     
-    ## collision avoid constrain
+    # CBF constraints
     for i in range(N):
-        distance_constraints = (opt_states[i, 0].T - defender_state[0]) ** 2 + (opt_states[i, 1].T - defender_state[1]) ** 2 
-        opti.subject_to(distance_constraints >= 0.16 + d_slack[i, :])
+        for j in range(np.size(others_states, 0)):
+            opti.subject_to( ((opt_states[i, 0] - others_states[j][0]) ** 2 + (opt_states[i, 1] - others_states[j][1]) ** 2 - safe_distance**2) >= 0 ) 
+
+    # # CLF constraints
+    # for i in range(M_CLF):
+    #     opti.subject_to(V(opt_states[i+1, :]) <= (1-0.1)*V(opt_states[i, :]) + d_slack[i, :]) 
 
     #### cost function
     obj = 0 
     for i in range(N):
-        obj = obj + ca.mtimes([(opt_states[i, :] - goal), Q, (opt_states[i, :]- goal).T]) + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T]) + ca.mtimes([d_slack[i, :], W_slack, d_slack[i, :].T]) 
+        obj = obj + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T])
+    obj = obj + ca.mtimes([(opt_states[N-1, :] - goal), Q, (opt_states[N-1, :]- goal).T])
 
     opti.minimize(obj)
-    opts_setting = {'ipopt.max_iter':200, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':200, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-5, 'ipopt.acceptable_obj_change_tol':1e-5}
     opti.solver('ipopt',opts_setting)
-    opti.set_value(opt_x0, attacker_state)
+    opti.set_value(opt_x0, self_state)
     sol = opti.solve()
     u_res = sol.value(opt_controls)
 
     return u_res[0, :]
+
+    # opti = ca.Opti()
+
+    # ## parameters
+    # T = 0.05
+    # N = 10
+    # v_max = 0.5
+    # omega_max = 2
+    # Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
+    # R = np.array([[0.5, 0.0], [0.0, 0.001]])
+    # W_slack = np.array([[1000]])
+    # goal = np.array([[1.2, 1.2, 0.0]])
+
+    # ## control variables, linear velocity v and angle velocity omega
+    # opt_x0 = opti.parameter(3)
+    # opt_controls = opti.variable(N, 2)
+    # v = opt_controls[:, 0]
+    # omega = opt_controls[:, 1]
+
+    # ## state variables
+    # opt_states = opti.variable(N+1, 3)
+    # x = opt_states[:, 0]
+    # y = opt_states[:, 1]
+    # theta = opt_states[:, 2]
+
+    # ## slack variable to avoid infeasibility 
+    # d_slack = opti.variable(N, 1)
+
+    # ## create funciont for F(x), H(x) and V(x)
+    # f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
+
+    # ## init_condition
+    # opti.subject_to(opt_states[0, :] == opt_x0.T)
+    # opti.subject_to(opti.bounded(-1.45, x, 1.45))
+    # opti.subject_to(opti.bounded(-1.45, y, 1.45))
+    # opti.subject_to(opti.bounded(-v_max, v, v_max))
+    # opti.subject_to(opti.bounded(-omega_max, omega, omega_max))   
+
+    # ## system model constrain
+    # for i in range(N):
+    #     x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
+    #     opti.subject_to(opt_states[i+1, :]==x_next)
+    
+    # ## collision avoid constrain
+    # for i in range(N):
+    #     distance_constraints = (opt_states[i, 0].T - defender_state[0]) ** 2 + (opt_states[i, 1].T - defender_state[1]) ** 2 
+    #     opti.subject_to(distance_constraints >= 0.16 + d_slack[i, :])
+
+    # #### cost function
+    # obj = 0 
+    # for i in range(N):
+    #     obj = obj + ca.mtimes([(opt_states[i, :] - goal), Q, (opt_states[i, :]- goal).T]) + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T]) + ca.mtimes([d_slack[i, :], W_slack, d_slack[i, :].T]) 
+
+    # opti.minimize(obj)
+    # opts_setting = {'ipopt.max_iter':500, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-6, 'ipopt.acceptable_obj_change_tol':1e-6}
+    # opti.solver('ipopt',opts_setting)
+    # opti.set_value(opt_x0, attacker_state)
+    # sol = opti.solve()
+    # u_res = sol.value(opt_controls)
+
+    # return u_res[0, :]
 
 def Simple_Catcher(attacker_state,defender_state):
     is_poistive = 1
@@ -162,9 +256,15 @@ def Simple_Catcher(attacker_state,defender_state):
 
     u = 1.5*distance*is_poistive
     w = theta_e*is_poistive
-    u = np.clip(u, -0.5, 0.5)
+    u = np.clip(u, -0.32, 0.32)
     w = np.clip(w, -2, 2)
     return np.array([u,w])
+
+
+
+
+        
+
 
 
 if __name__ == '__main__':
