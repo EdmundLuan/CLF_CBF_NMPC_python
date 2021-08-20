@@ -15,7 +15,7 @@ def CLF_CBF_NMPC(attacker_state,defender_state):
     ## parameters
     T = 0.05
     N = 10
-    M_CBF = 4
+    M_CBF = 3
     M_CLF = 3
     v_max = 0.5
     omega_max = 2
@@ -165,12 +165,6 @@ def Simple_Catcher(attacker_state,defender_state):
     u = np.clip(u, -0.5, 0.5)
     w = np.clip(w, -2, 2)
     return np.array([u,w])
-
-
-
-
-        
-
 
 
 if __name__ == '__main__':
