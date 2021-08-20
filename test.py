@@ -7,15 +7,36 @@ from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
 import numpy as np
 
 # N = 2
-N = 6
+N = 19
 
 a = np.array([[-1.2, -1.2 ,0]]).T
 # d = np.array([[0.1, 0.35, -3.14]]).T # 
-d = np.array([  [1, 0.5, -3.14], 
-                [0.55, 0, -1],
+d = np.array([  [1.2, 0.5, -3.14], 
+                [0.1, 0, -1],
                 [0.5, 0.5, -1.14],
                 [0, 1.2, -1.7],
                 [-0.5, -0.1, -2]
+    ]).T # 
+d = np.array([  [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14], 
+                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-0.5, 1.2*np.random.rand()-0.5, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14], 
+                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-0.5, 1.2*np.random.rand()-0.5, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+
+                
     ]).T # 
 initial_conditions = np.concatenate((a,d), axis=1)
 # initial_conditions = np.array([a,d]).T
@@ -37,9 +58,9 @@ def is_done(all_states):
         return True
 
     for idx in range(np.size(other_states, 0)):
-        if(other_states[idx][0]>1.5 or other_states[idx][0]<-1.5 or other_states[idx][1]>1.5 or other_states[idx][1]<-1.5 ):
-            print('Vehicle %d is out of boundaries !!' % idx+1)
-            return True
+        # if(other_states[idx][0]>1.5 or other_states[idx][0]<-1.5 or other_states[idx][1]>1.5 or other_states[idx][1]<-1.5 ):
+        #     print('Vehicle %d is out of boundaries !!' % idx+1)
+        #     return True
         distSqr = (self_state[0]-other_states[idx][0])**2 + (self_state[1]-other_states[idx][1])**2
         if distSqr < (0.2)**2:
             print('Get caught, mission failed !')
@@ -60,7 +81,7 @@ while (is_done(x)==False):
     
     # attacker_u = Base_NMPC(x[0],x[1:])
     attacker_u = CLF_CBF_NMPC(x[0], x[1:])
-    # attacker_u = np.array([0, 0.1])
+    # attacker_u = np.array([0.2, 0.1])
 
     # defender_u = Simple_Catcher(x[0],x[1])
 
@@ -69,8 +90,12 @@ while (is_done(x)==False):
 
     for idx in range(1, N):
         defender_u = Simple_Catcher(x[0],x[idx])
-        # dxu[idx] = defender_u
-        dxu[idx] = np.array([0.15, 0.02]) 
+        dxu[idx] = defender_u
+        dxu[idx] = np.array([0.2, 0.3]) 
+    # for idx in range(3, N):
+    #     defender_u = Simple_Catcher(x[0],x[idx])
+    #     dxu[idx] = defender_u
+    #     dxu[idx] = np.array([0.2, 0.02]) 
 
     r.set_velocities(np.arange(N), dxu.T)
 
