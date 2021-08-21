@@ -7,7 +7,7 @@ from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
 import numpy as np
 
 # N = 2
-N = 19
+N = 33
 
 a = np.array([[-1.2, -1.2 ,0]]).T
 # d = np.array([[0.1, 0.35, -3.14]]).T # 
@@ -35,6 +35,21 @@ d = np.array([  [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand
                 [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
                 [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
                 [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
+                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
+             
 
                 
     ]).T # 
