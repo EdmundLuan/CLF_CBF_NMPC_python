@@ -7,55 +7,15 @@ from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
 import numpy as np
 
 # N = 2
-N = 33
+N = 15
 
 a = np.array([[-1.2, -1.2 ,0]]).T
 # d = np.array([[0.1, 0.35, -3.14]]).T # 
-d = np.array([  [1.2, 0.5, -3.14], 
-                [0.1, 0, -1],
-                [0.5, 0.5, -1.14],
-                [0, 1.2, -1.7],
-                [-0.5, -0.1, -2]
-    ]).T # 
-d = np.array([  [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14], 
-                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-0.5, 1.2*np.random.rand()-0.5, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14], 
-                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-0.5, 1.2*np.random.rand()-0.5, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand()-1, 1.2*np.random.rand(), 6.28*np.random.rand()-3.14],
-                [1.2*np.random.rand(), 1.2*np.random.rand()-1, 6.28*np.random.rand()-3.14],
-             
-
-                
-    ]).T # 
-initial_conditions = np.concatenate((a,d), axis=1)
-# initial_conditions = np.array([a,d]).T
+initial_conditions = a
+for idx in range(N-1):
+    initial_conditions = np.concatenate((initial_conditions, np.array([[1.7*np.random.rand()-0.5, 1.7*np.random.rand()-0.5, 6.28*np.random.rand()-3.14]]).T), axis=1)
 print(initial_conditions)
+
 r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions,sim_in_real_time=True)
 
 

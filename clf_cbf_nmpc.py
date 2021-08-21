@@ -8,8 +8,8 @@ def CLF_CBF_NMPC(self_state, others_states):
 
     ## parameters for optimization
     T = 0.1
-    N = 10  # MPC horizon
-    M_CBF = 4  # CBF-QP horizon
+    N = 8  # MPC horizon
+    M_CBF = 3  # CBF-QP horizon
     M_CLF = 2   # CLF-QP horizon
     gamma_k = 0.1
     v_max = 0.5
@@ -40,14 +40,9 @@ def CLF_CBF_NMPC(self_state, others_states):
     f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
     # print(np.size(others_states, 0))
     for idx in range(np.size(others_states, 0)):
+        # CBF
         h = lambda x_,y_: (x_[0] - y_[0]) ** 2 + (x_[1] - y_[1]) ** 2 - safe_distance**2
-    # h1 = lambda x_: (x_[0] - others_states[0][0]) ** 2 + (x_[1] - others_states[0][1]) ** 2 - safe_distance**2
-    # h2 = lambda x_: (x_[0] - others_states[1][0]) ** 2 + (x_[1] - others_states[1][1]) ** 2 - safe_distance**2
-    # h3 = lambda x_: (x_[0] - others_states[2][0]) ** 2 + (x_[1] - others_states[2][1]) ** 2 - safe_distance**2
-    # h4 = lambda x_: (x_[0] - others_states[3][0]) ** 2 + (x_[1] - others_states[3][1]) ** 2 - safe_distance**2
-    # h5 = lambda x_: (x_[0] - others_states[4][0]) ** 2 + (x_[1] - others_states[4][1]) ** 2 - safe_distance**2
-
-    
+    # CLF
     V = lambda x_: (x_[0] - goal[0][0]) ** 2 + (x_[1] - goal[0][1]) ** 2 
 
     ## init_condition
@@ -60,22 +55,17 @@ def CLF_CBF_NMPC(self_state, others_states):
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max)) 
 
-    # system model constraints
+    # System Model constraints
     for i in range(N):
-        x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
+        x_next = opt_states[i, :] + T*f(opt_states[i, :], opt_controls[i, :]).T
         opti.subject_to(opt_states[i+1, :]==x_next)
     
     # CBF constraints
     for i in range(M_CBF):
         for j in range(np.size(others_states, 0)):
             opti.subject_to(h(opt_states[i+1, :],others_states[j]) >= (1-gamma_k)*h(opt_states[i, :],others_states[j]) ) 
-        # opti.subject_to(h1(opt_states[i+1, :]) >= (1-gamma_k)*h1(opt_states[i, :]) )
-        # opti.subject_to(h2(opt_states[i+1, :]) >= (1-gamma_k)*h2(opt_states[i, :]) )
-        # opti.subject_to(h3(opt_states[i+1, :]) >= (1-gamma_k)*h3(opt_states[i, :]) )
-        # opti.subject_to(h4(opt_states[i+1, :]) >= (1-gamma_k)*h4(opt_states[i, :]) )
-        # opti.subject_to(h5(opt_states[i+1, :]) >= (1-gamma_k)*h5(opt_states[i, :]) )
 
-    # CLF constraints
+    # # CLF constraints
     # for i in range(M_CLF):
     #     opti.subject_to(V(opt_states[i+1, :]) <= (1-0.1)*V(opt_states[i, :]) + d_slack[i, :]) 
 
