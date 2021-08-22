@@ -5,15 +5,19 @@ import rps.robotarium as robotarium
 # from rps.utilities.controllers import *
 from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
 import numpy as np
+from observer import Observer
+from estimator import Estimator
+
+
 
 # N = 2
-N = 15
+N = 20
 
 a = np.array([[-1.2, -1.2 ,0]]).T
 # d = np.array([[0.1, 0.35, -3.14]]).T # 
 initial_conditions = a
 for idx in range(N-1):
-    initial_conditions = np.concatenate((initial_conditions, np.array([[1.7*np.random.rand()-0.5, 1.7*np.random.rand()-0.5, 6.28*np.random.rand()-3.14]]).T), axis=1)
+    initial_conditions = np.concatenate((initial_conditions, np.array([[2.2*np.random.rand()-0.9, 2.2*np.random.rand()-0.9, 6.28*np.random.rand()-3.14]]).T), axis=1)
 print(initial_conditions)
 
 r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions,sim_in_real_time=True)
@@ -28,7 +32,7 @@ def is_done(all_states):
         print('Out of boundaries !!')
         return True
     # Reached goal?
-    if (0.5<=self_state[0]<=1.5 and 0.5<=self_state[1]<=1.5):
+    if (0.8<=self_state[0]<=1.5 and 0.8<=self_state[1]<=1.5):
         print('Reach goal successfully!')
         return True
 
@@ -50,12 +54,20 @@ r.step()
 i=0
 times = 0
 
+obsrvr = Observer(x, 0.1, 4)
+
 while (is_done(x)==False):
 
     x = r.get_poses().T
+
+    # Observe & Predict
+    obsrvr.feed(x)
+    f = lambda x_, u_: x_-x_ + u_
+    estmtr = Estimator(x[1:], obsrvr.vel[1:], f, 0.1, 10)
+    estmtr.predict()
     
     # attacker_u = Base_NMPC(x[0],x[1:])
-    attacker_u = CLF_CBF_NMPC(x[0], x[1:])
+    attacker_u = CLF_CBF_NMPC(x[0], x[1:], estmtr)
     # attacker_u = np.array([0.2, 0.1])
 
     # defender_u = Simple_Catcher(x[0],x[1])

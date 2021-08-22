@@ -1,25 +1,28 @@
 import numpy as np
 import casadi as ca
+from estimator import Estimator
+from observer import Observer
 
 
-def CLF_CBF_NMPC(self_state, others_states):
+
+def CLF_CBF_NMPC(self_state, others_states, estmtr):
     
     opti = ca.Opti()
 
     ## parameters for optimization
     T = 0.1
-    N = 8  # MPC horizon
+    N = 14  # MPC horizon
     M_CBF = 3  # CBF-QP horizon
     M_CLF = 2   # CLF-QP horizon
     gamma_k = 0.1
     v_max = 0.5
     omega_max = 1.5
-    safe_distance = 0.23
-    Q = np.array([[2.0, 0.0, 0.0],[0.0, 2.0, 0.0],[0.0, 0.0, 0.0]])
+    safe_distance = 0.24
+    Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
     R = np.array([[0.1, 0.0], [0.0, 0.0001]])
     # R = np.array([[0.8, 0.0], [0.0, 0.001]])
     W_slack = np.array([[1000]])
-    goal = np.array([[1.35, 1.35, 0.0]])
+    goal = np.array([[1.5, 1.5, 0.0]])
 
     ## control variables, linear velocity v and angle velocity omega
     opt_x0 = opti.parameter(3)
@@ -61,9 +64,15 @@ def CLF_CBF_NMPC(self_state, others_states):
         opti.subject_to(opt_states[i+1, :]==x_next)
     
     # CBF constraints
+    estmtr.window = M_CBF
     for i in range(M_CBF):
         for j in range(np.size(others_states, 0)):
-            opti.subject_to(h(opt_states[i+1, :],others_states[j]) >= (1-gamma_k)*h(opt_states[i, :],others_states[j]) ) 
+            opti.subject_to(h(opt_states[i+1, :], others_states[j]) >= (1-gamma_k)*h(opt_states[i, :],others_states[j]) ) 
+        for j in range(np.size(estmtr.predict_states, 0)):
+            opti.subject_to( h(opt_states[i+1, :], estmtr.predict_states[j][i]) >= (1-gamma_k)*h(opt_states[i, :], estmtr.predict_states[j][i]) )
+            # print("Predicted state of agent %d at %d steps later:" % (j+1, i+1) )
+            # print(estmtr.predict_states[j][i])
+        
 
     # # CLF constraints
     # for i in range(M_CLF):
@@ -76,7 +85,7 @@ def CLF_CBF_NMPC(self_state, others_states):
     obj = obj + ca.mtimes([(opt_states[N-1, :] - goal), Q, (opt_states[N-1, :]- goal).T])
 
     opti.minimize(obj)
-    opts_setting = {'ipopt.max_iter':200, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-6, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':500, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-5, 'ipopt.acceptable_obj_change_tol':1e-6}
     opti.solver('ipopt',opts_setting)
     opti.set_value(opt_x0, self_state)
     sol = opti.solve()
