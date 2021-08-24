@@ -1,9 +1,10 @@
+from numpy.random import gamma
 import rps.robotarium as robotarium
 # from rps.utilities.transformations import *
 # from rps.utilities.barrier_certificates import *
 # from rps.utilities.misc import *
 # from rps.utilities.controllers import *
-from clf_cbf_nmpc import CLF_CBF_NMPC,Base_NMPC,Simple_Catcher
+from clf_cbf_nmpc import CLF_CBF_NMPC
 import numpy as np
 from observer import Observer
 from estimator import Estimator
@@ -11,16 +12,18 @@ from estimator import Estimator
 
 
 # N = 2
-N = 20
+N = 14
 
 a = np.array([[-1.2, -1.2 ,0]]).T
-# d = np.array([[0.1, 0.35, -3.14]]).T # 
+# a = np.array([[0, 0 ,0]]).T
+d = np.array([[0.1, 0.35, -3.14]]).T # 
 initial_conditions = a
-for idx in range(N-1):
+for idx in range(1, N):
     initial_conditions = np.concatenate((initial_conditions, np.array([[2.2*np.random.rand()-0.9, 2.2*np.random.rand()-0.9, 6.28*np.random.rand()-3.14]]).T), axis=1)
+print('Initial conditions:')
 print(initial_conditions)
 
-r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions,sim_in_real_time=True)
+r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions, sim_in_real_time=True)
 
 
 def is_done(all_states):
@@ -32,7 +35,7 @@ def is_done(all_states):
         print('Out of boundaries !!')
         return True
     # Reached goal?
-    if (0.8<=self_state[0]<=1.5 and 0.8<=self_state[1]<=1.5):
+    if (0.7<=self_state[0]<=1.5 and 0.7<=self_state[1]<=1.5):
         print('Reach goal successfully!')
         return True
 
@@ -54,9 +57,19 @@ r.step()
 i=0
 times = 0
 
-obsrvr = Observer(x, 0.1, 4)
+obsrvr = Observer(x, 0.1, 3)
+
+mpc_horizon = 10
+T = 0.1
+m_cbf = 5
+m_clf = 0
+gamma_k = 0.1
+alpha_k = 0.01
+clf_cbf_nmpc_solver = CLF_CBF_NMPC(mpc_horizon, T, m_cbf, m_clf, gamma_k, alpha_k)
 
 while (is_done(x)==False):
+    print('\n----------------------------------------------------------')
+    print("Iteration %d" % times)
 
     x = r.get_poses().T
 
@@ -65,9 +78,9 @@ while (is_done(x)==False):
     f = lambda x_, u_: x_-x_ + u_
     estmtr = Estimator(x[1:], obsrvr.vel[1:], f, 0.1, 10)
     estmtr.predict()
-    
-    # attacker_u = Base_NMPC(x[0],x[1:])
-    attacker_u = CLF_CBF_NMPC(x[0], x[1:], estmtr)
+
+    clf_cbf_nmpc_solver.solve(x[0], [1.4, 1.4, 0], np.concatenate((np.array([obsrvr.states[1:]]), estmtr.predict_states), axis = 0))
+    attacker_u = clf_cbf_nmpc_solver.get_optimized_u()
     # attacker_u = np.array([0.2, 0.1])
 
     # defender_u = Simple_Catcher(x[0],x[1])
@@ -76,10 +89,10 @@ while (is_done(x)==False):
     dxu[0] = np.array([attacker_u[0],attacker_u[1]])
 
     for idx in range(1, N):
-        defender_u = Simple_Catcher(x[0],x[idx])
-        dxu[idx] = defender_u
-        dxu[idx] = np.array([0.2, 0.3]) 
-    # for idx in range(3, N):
+        # defender_u = Simple_Catcher(x[0],x[idx])
+        # dxu[idx] = defender_u
+        dxu[idx] = np.array([0.08, 0.2]) 
+    # for idx in range(3, N)
     #     defender_u = Simple_Catcher(x[0],x[idx])
     #     dxu[idx] = defender_u
     #     dxu[idx] = np.array([0.2, 0.02]) 
@@ -87,8 +100,8 @@ while (is_done(x)==False):
     r.set_velocities(np.arange(N), dxu.T)
 
     times+=1
-    print("Iteration %d" % times)
     i+=1
     r.step()
+    print('----------------------------------------------------------\n')
 
 r.call_at_scripts_end()

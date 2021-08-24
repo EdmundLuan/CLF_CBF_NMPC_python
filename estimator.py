@@ -49,7 +49,7 @@ class Estimator:
 if __name__ == '__main__':
     # Unicycle model
     dyn = lambda x_, u_: np.array([u_.T[0]*np.cos(x_.T[2]), u_.T[0]*np.sin(x_.T[2]), u_.T[1]]).T
-    est = Estimator(np.array([[0, 0, 0], [1,2,3]]), np.array([[1, 0], [-1, 0]]), dyn, 0.1, 10)
+    est = Estimator(np.array([[0, 0, 0], [1,2,3], [4,5,6]]), np.array([[1, 0], [-1, 0], [0, 0.1]]), dyn, 0.1, 10)
     est.predict()
     print(est.predict_states)
 
