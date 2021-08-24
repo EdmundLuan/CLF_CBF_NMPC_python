@@ -4,7 +4,7 @@ import rps.robotarium as robotarium
 # from rps.utilities.barrier_certificates import *
 # from rps.utilities.misc import *
 # from rps.utilities.controllers import *
-from clf_cbf_nmpc import CLF_CBF_NMPC
+from clf_cbf_nmpc import CLF_CBF_NMPC,Simple_Catcher
 import numpy as np
 from observer import Observer
 from estimator import Estimator
@@ -12,14 +12,14 @@ from estimator import Estimator
 
 
 # N = 2
-N = 14
+N = 50
 
 a = np.array([[-1.2, -1.2 ,0]]).T
 # a = np.array([[0, 0 ,0]]).T
 d = np.array([[0.1, 0.35, -3.14]]).T # 
 initial_conditions = a
 for idx in range(1, N):
-    initial_conditions = np.concatenate((initial_conditions, np.array([[2.2*np.random.rand()-0.9, 2.2*np.random.rand()-0.9, 6.28*np.random.rand()-3.14]]).T), axis=1)
+    initial_conditions = np.concatenate((initial_conditions, np.array([[2.6*np.random.rand()-1.0, 2.6*np.random.rand()-1.0, 6.28*np.random.rand()-3.14]]).T), axis=1)
 print('Initial conditions:')
 print(initial_conditions)
 
@@ -57,30 +57,32 @@ r.step()
 i=0
 times = 0
 
-obsrvr = Observer(x, 0.1, 3)
+obsrvr = Observer(x, 0.1, 6)
 
 mpc_horizon = 10
 T = 0.1
-m_cbf = 5
+m_cbf = 8
 m_clf = 0
-gamma_k = 0.1
-alpha_k = 0.01
+gamma_k = 0.25
+alpha_k = 0.1
 clf_cbf_nmpc_solver = CLF_CBF_NMPC(mpc_horizon, T, m_cbf, m_clf, gamma_k, alpha_k)
 
 while (is_done(x)==False):
-    print('\n----------------------------------------------------------')
-    print("Iteration %d" % times)
+    # print('\n----------------------------------------------------------')
+    # print("Iteration %d" % times)
 
     x = r.get_poses().T
 
     # Observe & Predict
+
     obsrvr.feed(x)
     f = lambda x_, u_: x_-x_ + u_
+    # print(obsrvr.vel[1:])
     estmtr = Estimator(x[1:], obsrvr.vel[1:], f, 0.1, 10)
     estmtr.predict()
-
-    clf_cbf_nmpc_solver.solve(x[0], [1.4, 1.4, 0], np.concatenate((np.array([obsrvr.states[1:]]), estmtr.predict_states), axis = 0))
-    attacker_u = clf_cbf_nmpc_solver.get_optimized_u()
+    # print(estmtr.predict_states)
+    global_states_sol, controls_sol, local_states_sol = clf_cbf_nmpc_solver.solve(x[0], [1.4, 1.4, 0], np.concatenate((np.array([obsrvr.states[1:]]), estmtr.predict_states), axis = 0))
+    attacker_u = controls_sol[0]
     # attacker_u = np.array([0.2, 0.1])
 
     # defender_u = Simple_Catcher(x[0],x[1])
@@ -91,7 +93,8 @@ while (is_done(x)==False):
     for idx in range(1, N):
         # defender_u = Simple_Catcher(x[0],x[idx])
         # dxu[idx] = defender_u
-        dxu[idx] = np.array([0.08, 0.2]) 
+        # dxu[idx] = np.array([0, 0]) 
+        dxu[idx] = np.array([0.15, 0.1]) 
     # for idx in range(3, N)
     #     defender_u = Simple_Catcher(x[0],x[idx])
     #     dxu[idx] = defender_u
@@ -102,6 +105,6 @@ while (is_done(x)==False):
     times+=1
     i+=1
     r.step()
-    print('----------------------------------------------------------\n')
+    # print('----------------------------------------------------------\n')
 
 r.call_at_scripts_end()

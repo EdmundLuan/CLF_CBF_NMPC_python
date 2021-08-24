@@ -108,8 +108,6 @@ class CLF_CBF_NMPC():
     def reset(self):
         # clear all constraints
         self.opti.subject_to()
-        self.opt_x0_local = self.opti.parameter(np.size(self.opt_x0_local, 0))
-        self.opt_x0_global = self.opti.parameter(np.size(self.opt_x0_global, 0))
         self.opt_cost = 0
         self.__set_cost_func()
 
@@ -132,11 +130,12 @@ class CLF_CBF_NMPC():
         # quadratic cost  : J = (x-goal)^T * Q * (x-goal)  +  u^T * R * u  + W_slack * opt_d_slack 
         # Q               : Weights for state variables in a (quadratic) cost function 
         # R               : Weights for control input variables in a (quadratic) cost function
-        Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 0.0]])
+        Q = np.array([[1, 0.0, 0.0],[0.0, 1, 0.0],[0.0, 0.0, 0.0]])
         R = np.array([[0.01, 0.0], [0.0, 0.00001]])
         W_slack = np.array([[1000]])
         for i in range(self.N):
             self.opt_cost = self.opt_cost + ca.mtimes([self.opt_controls[i, :], R, self.opt_controls[i, :].T]) + ca.mtimes([self.opt_d_slack[i, :], W_slack, self.opt_d_slack[i, :].T])
+            # self.opt_cost = self.opt_cost + ca.mtimes([(self.opt_states[i, :] - self.goal_local.T), Q, (self.opt_states[i, :]- self.goal_local.T).T]) / 5
         # final term 
         self.opt_cost = self.opt_cost + ca.mtimes([(self.opt_states[self.N-1, :] - self.goal_local.T), Q, (self.opt_states[self.N-1, :]- self.goal_local.T).T])
 
@@ -167,10 +166,10 @@ class CLF_CBF_NMPC():
                 obs_i[1] -= init_st[1]
                 
 
-        print('Goal_global:')
-        print(self.opti.value(self.goal_global))
-        print('Goal_local:')
-        print(self.opti.value(self.goal_local))
+        # print('Goal_global:')
+        # print(self.opti.value(self.goal_global))
+        # # print('Goal_local:')
+        # print(self.opti.value(self.goal_local))
 
     def __local2global(self):
         delta = self.opti.value(self.opt_x0_global-self.opt_x0_local)
@@ -210,7 +209,7 @@ class CLF_CBF_NMPC():
 
     def __add_safe_constrnts(self):
         # safe distance
-        safe_dist = 0.3
+        safe_dist = 0.22
         # control barrier function
         h = lambda x_,y_: (x_[0] - y_[0]) ** 2 + (x_[1] - y_[1]) ** 2 - safe_dist**2
         
@@ -223,7 +222,7 @@ class CLF_CBF_NMPC():
 
     def __add_stability_constrnts(self):
         # control Lyapunov function 
-        V = lambda x_: (x_[0] - self.goal_local[0][0]) ** 2 + (x_[1] - self.goal_local[0][1]) ** 2 
+        V = lambda x_: (x_[0] - self.goal_local[0]) ** 2 + (x_[1] - self.goal_local[1]) ** 2 
         # add CLF constraints
         for i in range(self.M_CLF):
             self.opti.subject_to(V(self.opt_states[i+1, :]) <= (1-self.alpha_k)*V(self.opt_states[i, :]) + self.opt_d_slack[i, :])
@@ -251,7 +250,7 @@ class CLF_CBF_NMPC():
         """
         # Reset the optimizer FIRST!
         self.reset()
-        print("Optimizer reset.")
+        # print("Optimizer reset.")
         
         # set initial states
         self.opti.set_value(self.opt_x0_global, init_st)
@@ -259,12 +258,22 @@ class CLF_CBF_NMPC():
         # set goal states
         self.set_goal(goal_st)
 
-        # obstacles or other agents
+        # obstacles or other agent
+
         self.obstacles = others_states.copy()
+        l = []
+        for i in range(self.obstacles.shape[1]):
+            if((self.obstacles[0][i][0] - init_st[0])** 2 + (self.obstacles[0][i][1] - init_st[1])** 2 > 1):
+                l.append(i)
+
+        self.obstacles = np.delete(self.obstacles, l, axis=1)
+                # print("in")
+        print(self.obstacles.shape)
+
 
         # Turn everything into local coordinates. 
         self.__global2local()       # Very IMPORTANT!! 
-        print('Coordinates transformed to local.')
+        # print('Coordinates transformed to local.')
 
         # Adding constraints to the optimizer
         self.__add_system_constrnts()
@@ -274,8 +283,9 @@ class CLF_CBF_NMPC():
 
         # Optimizer configures
         self.opti.minimize(self.opt_cost)
-        opts_setting = {'ipopt.max_iter':500, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-6, 'ipopt.acceptable_obj_change_tol':1e-6}
+        opts_setting = {'ipopt.max_iter':200, 'ipopt.print_level':1, 'print_time':0, 'ipopt.acceptable_tol':1e-5, 'ipopt.acceptable_obj_change_tol':1e-5}
         self.opti.solver('ipopt', opts_setting)
+        # self.opti.solver('ipopt')
         # self.solution = self.opti.solve()
         
 
@@ -303,6 +313,31 @@ class CLF_CBF_NMPC():
         print(self.solution.value(self.opt_controls)[0, :])
         return self.solution.value(self.opt_controls)[0, :]
 
+
+
+def Simple_Catcher(attacker_state,defender_state):
+    is_poistive = 1
+    distance = np.sqrt(np.sum(np.square(attacker_state[:2] - defender_state[:2])))
+    dx =attacker_state[0] - defender_state[0]
+    dy =attacker_state[1] - defender_state[1]
+    theta_e = np.arctan2(dy,dx) - defender_state[2]
+    # print(np.arctan(dy/dx))
+    # print(defender_state[2])
+    # attacker_state[2] - defender_state[2]
+    if(theta_e>np.pi):
+        theta_e -= 2*np.pi
+    elif (theta_e<-np.pi):
+        theta_e += 2*np.pi
+    # print(theta_e)
+    
+    if(theta_e>np.pi/2 or theta_e<-np.pi/2):
+        is_poistive = -1
+
+    u = 1.5*distance*is_poistive
+    w = theta_e*is_poistive
+    u = np.clip(u, -0.32, 0.32)
+    w = np.clip(w, -2, 2)
+    return np.array([u,w])
 
 
 ## Test Code

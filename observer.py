@@ -29,24 +29,20 @@ class Observer:
         self.states = x0
         self.r_roi = r
 
+
     
     def feed(self, new_obsrv):
+        # print('1',self.observation_history)
+        obsrv = new_obsrv.copy()
+        # print(obsrv)
         self.observation_history.pop(0)    # Discard the oldest observation in the slot
-
-        # # Screening observations based on distance (discard those that are far away)
-        # self.states = np.array([new_obsrv[0]])
-        # for obs in new_obsrv:
-        #     distSqr = (obs[0] - new_obsrv[0][0])**2 + (obs[1] - new_obsrv[0][1])**2
-        #     if distSqr <= self.r_roi**2:
-        #         self.states = np.concatenate((self.states, [obs]), axis=0)
-        self.observation_history.append(new_obsrv)
+        self.observation_history.append(obsrv)
 
         # Successive difference method calculating velocities
         num_grp = math.floor(self.window/2)
         sum = self.observation_history[self.window-1] - self.observation_history[self.window-1]
         for i in range(1, num_grp+1):
-            sum = sum + self.observation_history[self.window-i]
-            sum = sum - self.observation_history[self.window-num_grp-i]
+            sum = sum + self.observation_history[self.window-i] - self.observation_history[self.window-num_grp-i]
         self.states = new_obsrv
         self.vel = sum / num_grp / (self.step*num_grp)
 
@@ -56,11 +52,11 @@ class Observer:
 if __name__ == '__main__':
     v = 1
     T = 0.01
-    x = np.array([[0, 0], [1, 1]])
+    x = np.array([[0, 0], [1, 1], [2,2]])
     observer = Observer(x, T, 5)
     for k in range(1, 10):
         x = x + v*T
         observer.feed(x)
         print(k)
-        # print(observer.observation_history)
+        print(observer.observation_history)
         print(observer.vel)
