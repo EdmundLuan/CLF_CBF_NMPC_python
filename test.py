@@ -20,8 +20,8 @@ d = np.array([[0.1, 0.35, -3.14]]).T #
 initial_conditions = a
 for idx in range(1, N):
     initial_conditions = np.concatenate((initial_conditions, np.array([[2.6*np.random.rand()-1.0, 2.6*np.random.rand()-1.0, 6.28*np.random.rand()-3.14]]).T), axis=1)
-print('Initial conditions:')
-print(initial_conditions)
+# print('Initial conditions:')
+# print(initial_conditions)
 
 r = robotarium.Robotarium(number_of_robots=N, show_figure=True, initial_conditions=initial_conditions, sim_in_real_time=True)
 

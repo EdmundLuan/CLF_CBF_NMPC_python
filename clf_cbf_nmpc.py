@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 
-from casadi.casadi import print_operator
 import numpy as np
 import casadi as ca
 
@@ -209,7 +208,7 @@ class CLF_CBF_NMPC():
 
     def __add_safe_constrnts(self):
         # safe distance
-        safe_dist = 0.22
+        safe_dist = 0.24
         # control barrier function
         h = lambda x_,y_: (x_[0] - y_[0]) ** 2 + (x_[1] - y_[1]) ** 2 - safe_dist**2
         
@@ -258,17 +257,16 @@ class CLF_CBF_NMPC():
         # set goal states
         self.set_goal(goal_st)
 
-        # obstacles or other agent
-
+        # obstacles or other agents
         self.obstacles = others_states.copy()
+        # only care about obstacles within an ROI 
         l = []
         for i in range(self.obstacles.shape[1]):
             if((self.obstacles[0][i][0] - init_st[0])** 2 + (self.obstacles[0][i][1] - init_st[1])** 2 > 1):
                 l.append(i)
-
+        # delete those out of the ROI
         self.obstacles = np.delete(self.obstacles, l, axis=1)
-                # print("in")
-        print(self.obstacles.shape)
+        # print(self.obstacles.shape)
 
 
         # Turn everything into local coordinates. 
