@@ -3,6 +3,8 @@ import math
 from abc import ABC, abstractmethod
 
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -34,13 +36,13 @@ class RobotariumABC(ABC):
         self.initial_conditions = initial_conditions
 
         # Boundary stuff -> lower left point / width / height
-        self.boundaries = [-1.5, -1.5, 3, 3]
+        self.boundaries = [-2, -2, 4, 4]
 
         self.file_path = None
         self.current_file_size = 0
 
         # Constants
-        self.time_step = 0.05
+        self.time_step = 0.1
         self.robot_diameter = 0.15
         self.wheel_radius = 0.016
         self.base_length = 0.105
